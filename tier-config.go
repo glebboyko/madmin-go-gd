@@ -44,6 +44,8 @@ const (
 	GCS
 	// MinIO refers to MinIO object storage backend
 	MinIO
+	// GoogleDrive refers to Google Drive storage backend
+	GoogleDrive
 )
 
 // String returns the name of tt's remote tier backend.
@@ -57,6 +59,8 @@ func (tt TierType) String() string {
 		return "gcs"
 	case MinIO:
 		return "minio"
+	case GoogleDrive:
+		return "gdrive"
 	}
 	return "unsupported"
 }
@@ -96,6 +100,8 @@ func NewTierType(scType string) (TierType, error) {
 		return GCS, nil
 	case MinIO.String():
 		return MinIO, nil
+	case GoogleDrive.String():
+		return GoogleDrive, nil
 	}
 
 	return Unsupported, ErrTierTypeUnsupported
@@ -105,13 +111,14 @@ func NewTierType(scType string) (TierType, error) {
 // supported. The specific backend is identified by the Type field. It has a
 // Version field to allow for backwards-compatible extension in the future.
 type TierConfig struct {
-	Version string
-	Type    TierType   `json:",omitempty"`
-	Name    string     `json:",omitempty"`
-	S3      *TierS3    `json:",omitempty"`
-	Azure   *TierAzure `json:",omitempty"`
-	GCS     *TierGCS   `json:",omitempty"`
-	MinIO   *TierMinIO `json:",omitempty"`
+	Version     string
+	Type        TierType          `json:",omitempty"`
+	Name        string            `json:",omitempty"`
+	S3          *TierS3           `json:",omitempty"`
+	Azure       *TierAzure        `json:",omitempty"`
+	GCS         *TierGCS          `json:",omitempty"`
+	MinIO       *TierMinIO        `json:",omitempty"`
+	GoogleDrive *TierGoogleDrive  `json:",omitempty"`
 }
 
 var (
@@ -132,6 +139,7 @@ func (cfg *TierConfig) Clone() TierConfig {
 		az  TierAzure
 		gcs TierGCS
 		m   TierMinIO
+		gd  TierGoogleDrive
 	)
 	switch cfg.Type {
 	case S3:
@@ -146,15 +154,20 @@ func (cfg *TierConfig) Clone() TierConfig {
 	case MinIO:
 		m = *cfg.MinIO
 		m.SecretKey = "REDACTED"
+	case GoogleDrive:
+		gd = *cfg.GoogleDrive
+		gd.ClientSecret = "REDACTED"
+		gd.RefreshToken = "REDACTED"
 	}
 	return TierConfig{
-		Version: cfg.Version,
-		Type:    cfg.Type,
-		Name:    cfg.Name,
-		S3:      &s3,
-		Azure:   &az,
-		GCS:     &gcs,
-		MinIO:   &m,
+		Version:     cfg.Version,
+		Type:        cfg.Type,
+		Name:        cfg.Name,
+		S3:          &s3,
+		Azure:       &az,
+		GCS:         &gcs,
+		MinIO:       &m,
+		GoogleDrive: &gd,
 	}
 }
 
@@ -192,6 +205,10 @@ func (cfg *TierConfig) UnmarshalJSON(b []byte) error {
 		if m.MinIO == nil {
 			return ErrTierInvalidConfig
 		}
+	case GoogleDrive:
+		if m.GoogleDrive == nil {
+			return ErrTierInvalidConfig
+		}
 	}
 
 	if m.Name == "" {
@@ -213,6 +230,8 @@ func (cfg *TierConfig) Endpoint() string {
 		return cfg.GCS.Endpoint
 	case MinIO:
 		return cfg.MinIO.Endpoint
+	case GoogleDrive:
+		return "" // GoogleDrive uses folder ID, not endpoint
 	}
 	log.Printf("unexpected tier type %s", cfg.Type)
 	return ""
@@ -229,6 +248,8 @@ func (cfg *TierConfig) Bucket() string {
 		return cfg.GCS.Bucket
 	case MinIO:
 		return cfg.MinIO.Bucket
+	case GoogleDrive:
+		return cfg.GoogleDrive.FolderID // Use folder ID as bucket equivalent
 	}
 	log.Printf("unexpected tier type %s", cfg.Type)
 	return ""
@@ -245,6 +266,8 @@ func (cfg *TierConfig) Prefix() string {
 		return cfg.GCS.Prefix
 	case MinIO:
 		return cfg.MinIO.Prefix
+	case GoogleDrive:
+		return "" // GoogleDrive uses flat folder structure
 	}
 	log.Printf("unexpected tier type %s", cfg.Type)
 	return ""
@@ -261,6 +284,8 @@ func (cfg *TierConfig) Region() string {
 		return cfg.GCS.Region
 	case MinIO:
 		return cfg.MinIO.Region
+	case GoogleDrive:
+		return "" // GoogleDrive is not region-specific
 	}
 	log.Printf("unexpected tier type %s", cfg.Type)
 	return ""

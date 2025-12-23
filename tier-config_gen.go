@@ -118,6 +118,24 @@ func (z *TierConfig) DecodeMsg(dc *msgp.Reader) (err error) {
 					return
 				}
 			}
+		case "GoogleDrive":
+			if dc.IsNil() {
+				err = dc.ReadNil()
+				if err != nil {
+					err = msgp.WrapError(err, "GoogleDrive")
+					return
+				}
+				z.GoogleDrive = nil
+			} else {
+				if z.GoogleDrive == nil {
+					z.GoogleDrive = new(TierGoogleDrive)
+				}
+				err = z.GoogleDrive.DecodeMsg(dc)
+				if err != nil {
+					err = msgp.WrapError(err, "GoogleDrive")
+					return
+				}
+			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -131,9 +149,9 @@ func (z *TierConfig) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *TierConfig) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 7
+	// map header, size 8
 	// write "Version"
-	err = en.Append(0x87, 0xa7, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e)
+	err = en.Append(0x88, 0xa7, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e)
 	if err != nil {
 		return
 	}
@@ -230,15 +248,32 @@ func (z *TierConfig) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	}
+	// write "GoogleDrive"
+	err = en.Append(0xab, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x44, 0x72, 0x69, 0x76, 0x65)
+	if err != nil {
+		return
+	}
+	if z.GoogleDrive == nil {
+		err = en.WriteNil()
+		if err != nil {
+			return
+		}
+	} else {
+		err = z.GoogleDrive.EncodeMsg(en)
+		if err != nil {
+			err = msgp.WrapError(err, "GoogleDrive")
+			return
+		}
+	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *TierConfig) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 7
+	// map header, size 8
 	// string "Version"
-	o = append(o, 0x87, 0xa7, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e)
+	o = append(o, 0x88, 0xa7, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e)
 	o = msgp.AppendString(o, z.Version)
 	// string "Type"
 	o = append(o, 0xa4, 0x54, 0x79, 0x70, 0x65)
@@ -287,6 +322,17 @@ func (z *TierConfig) MarshalMsg(b []byte) (o []byte, err error) {
 		o, err = z.MinIO.MarshalMsg(o)
 		if err != nil {
 			err = msgp.WrapError(err, "MinIO")
+			return
+		}
+	}
+	// string "GoogleDrive"
+	o = append(o, 0xab, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x44, 0x72, 0x69, 0x76, 0x65)
+	if z.GoogleDrive == nil {
+		o = msgp.AppendNil(o)
+	} else {
+		o, err = z.GoogleDrive.MarshalMsg(o)
+		if err != nil {
+			err = msgp.WrapError(err, "GoogleDrive")
 			return
 		}
 	}
@@ -401,6 +447,23 @@ func (z *TierConfig) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					return
 				}
 			}
+		case "GoogleDrive":
+			if msgp.IsNil(bts) {
+				bts, err = msgp.ReadNilBytes(bts)
+				if err != nil {
+					return
+				}
+				z.GoogleDrive = nil
+			} else {
+				if z.GoogleDrive == nil {
+					z.GoogleDrive = new(TierGoogleDrive)
+				}
+				bts, err = z.GoogleDrive.UnmarshalMsg(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "GoogleDrive")
+					return
+				}
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -438,6 +501,12 @@ func (z *TierConfig) Msgsize() (s int) {
 		s += msgp.NilSize
 	} else {
 		s += z.MinIO.Msgsize()
+	}
+	s += 12
+	if z.GoogleDrive == nil {
+		s += msgp.NilSize
+	} else {
+		s += z.GoogleDrive.Msgsize()
 	}
 	return
 }
